@@ -6,3 +6,5 @@ One of the greatest adavantages of using MuJoCo is that we can simply install wi
 ```
 pip install mujoco
 ```
+
+Contact: sungjoon-choi@korea.ac.kr 
