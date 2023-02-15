@@ -6,5 +6,8 @@ One of the greatest adavantages of using MuJoCo is that we can simply install wi
 ```
 pip install mujoco
 ```
-
+You may also want to install the custom viewer as well:
+```
+pip install mujoco-python-viewer
+```
 Contact: sungjoon-choi@korea.ac.kr 
