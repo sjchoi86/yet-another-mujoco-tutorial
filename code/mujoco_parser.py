@@ -61,6 +61,8 @@ class MuJoCoParserClass(object):
         self.pri_joint_max   = self.joint_ranges[self.pri_joint_idxs,1]
         self.pri_joint_range = self.pri_joint_max - self.pri_joint_min
         self.n_pri_joint     = len(self.pri_joint_idxs)
+        # Actuator
+        self.ctrl_range      = self.model.actuator_ctrlrange
         
     def print_info(self):
         """
@@ -86,6 +88,8 @@ class MuJoCoParserClass(object):
         print ("pri_joint_min:%s"%(self.pri_joint_min))
         print ("pri_joint_max:%s"%(self.pri_joint_max))
         print ("pri_joint_range:%s"%(self.pri_joint_range))
+
+        print ("ctrl_range:\n%s"%(self.ctrl_range))
         
         
     def init_viewer(self,viewer_title='MuJoCo',viewer_width=1200,viewer_height=800,viewer_hide_menus=True):
