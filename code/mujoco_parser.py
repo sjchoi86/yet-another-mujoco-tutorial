@@ -16,7 +16,8 @@ class MuJoCoParserClass(object):
         self.rel_xml_path = rel_xml_path
         self.VERBOSE      = VERBOSE
         # Constants
-        self.tick          = 0
+        self.tick         = 0
+        self.render_tick  = 0
         # Parse an xml file
         if self.rel_xml_path is not None:
             self._parse_xml()
@@ -63,6 +64,15 @@ class MuJoCoParserClass(object):
         self.n_pri_joint      = len(self.pri_joint_idxs)
         # Actuator
         self.n_ctrl           = self.model.nu # number of actuators (or controls)
+        self.ctrl_names       = []
+        for addr in self.model.name_actuatoradr:
+            ctrl_name = self.model.names[addr:].decode().split('\x00')[0]
+            self.ctrl_names.append(ctrl_name) # get ctrl name
+        self.ctrl_joint_idxs = []
+        for ctrl_idx in range(self.n_ctrl):
+            transmission_idx = self.model.actuator(self.ctrl_names[ctrl_idx]).trnid # transmission index
+            joint_idx = self.model.jnt_qposadr[transmission_idx][0] # index of the joint when the actuator acts on a joint
+            self.ctrl_joint_idxs.append(joint_idx)
         self.ctrl_ranges      = self.model.actuator_ctrlrange # control range
         
     def print_info(self):
@@ -89,7 +99,9 @@ class MuJoCoParserClass(object):
         print ("pri_joint_mins:%s"%(self.pri_joint_mins))
         print ("pri_joint_maxs:%s"%(self.pri_joint_maxs))
         print ("pri_joint_ranges:%s"%(self.pri_joint_ranges))
-        print ("n_ctrl:\n%s"%(self.n_ctrl))
+        print ("n_ctrl:[%d]"%(self.n_ctrl))
+        print ("ctrl_names:%s"%(self.ctrl_names))
+        print ("ctrl_joint_idxs:%s"%(self.ctrl_joint_idxs))
         print ("ctrl_ranges:\n%s"%(self.ctrl_ranges))
         
         
@@ -137,6 +149,19 @@ class MuJoCoParserClass(object):
             self.model.vis.rgba.joint = jointrgba
         mujoco.mj_forward(self.model,self.data)
 
+    def get_viewer_cam_info(self,VERBOSE=True):
+        """
+            Get viewer cam information
+        """
+        cam_azimuth   = self.viewer.cam.azimuth
+        cam_distance  = self.viewer.cam.distance
+        cam_elevation = self.viewer.cam.elevation
+        cam_lookat    = self.viewer.cam.lookat
+        if VERBOSE:
+            print ("cam_azimuth:[%.2f] cam_distance:[%.2f] cam_elevation:[%.2f] cam_lookat:[%.2f]"%
+                (cam_azimuth,cam_distance,cam_elevation,cam_lookat))
+        return cam_azimuth,cam_distance,cam_elevation,cam_lookat
+
     def is_viewer_alive(self):
         """
             Check whether a viewer is alive
@@ -149,7 +174,8 @@ class MuJoCoParserClass(object):
         """
         mujoco.mj_resetData(self.model,self.data)
         mujoco.mj_forward(self.model,self.data)
-        self.tick = 0
+        self.tick        = 0
+        self.render_tick = 0
 
     def step(self,ctrl=None,ctrl_idxs=None,nstep=1):
         """
@@ -181,12 +207,14 @@ class MuJoCoParserClass(object):
         """
         return self.data.time
         
-    def render(self):
+    def render(self,render_every=1):
         """
             Render
         """
         if self.USE_MUJOCO_VIEWER:
-            self.viewer.render()
+            self.render_tick = self.render_tick + 1
+            if (self.render_tick % render_every) == 0:
+                self.viewer.render()
         else:
             print ("[%s] Viewer NOT initialized."%(self.name))
             
