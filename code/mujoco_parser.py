@@ -34,35 +34,36 @@ class MuJoCoParserClass(object):
         """
             Parse an xml file
         """
-        self.full_xml_path   = os.path.abspath(os.path.join(os.getcwd(),self.rel_xml_path))
-        self.model           = mujoco.MjModel.from_xml_path(self.full_xml_path)
-        self.data            = mujoco.MjData(self.model)
-        self.n_geom          = self.model.ngeom # number of geometries
-        self.geom_names      = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_GEOM,x) 
+        self.full_xml_path    = os.path.abspath(os.path.join(os.getcwd(),self.rel_xml_path))
+        self.model            = mujoco.MjModel.from_xml_path(self.full_xml_path)
+        self.data             = mujoco.MjData(self.model)
+        self.n_geom           = self.model.ngeom # number of geometries
+        self.geom_names       = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_GEOM,x) 
                                 for x in range(self.model.ngeom)]
-        self.n_body          = self.model.nbody # number of bodies
-        self.body_names      = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_BODY,x) 
+        self.n_body           = self.model.nbody # number of bodies
+        self.body_names       = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_BODY,x) 
                                 for x in range(self.n_body)]
-        self.n_dof           = self.model.nv # degree of freedom
-        self.n_joint         = self.model.njnt     # number of joints
-        self.joint_names     = [mujoco.mj_id2name(self.model,mujoco.mjtJoint.mjJNT_HINGE,x) 
-                                for x in range(self.n_joint)]
-        self.joint_types     = self.model.jnt_type # joint types
-        self.joint_ranges    = self.model.jnt_range # joint ranges
-        self.rev_joint_idxs  = np.where(self.joint_types==mujoco.mjtJoint.mjJNT_HINGE)[0].astype(np.int32)
-        self.rev_joint_names = [self.joint_names[x] for x in self.rev_joint_idxs]
-        self.n_rev_joint     = len(self.rev_joint_idxs)
-        self.rev_joint_min   = self.joint_ranges[self.rev_joint_idxs,0]
-        self.rev_joint_max   = self.joint_ranges[self.rev_joint_idxs,1]
-        self.rev_joint_range = self.rev_joint_max - self.rev_joint_min
-        self.pri_joint_idxs  = np.where(self.joint_types==mujoco.mjtJoint.mjJNT_SLIDE)[0].astype(np.int32)
-        self.pri_joint_names = [self.joint_names[x] for x in self.pri_joint_idxs]
-        self.pri_joint_min   = self.joint_ranges[self.pri_joint_idxs,0]
-        self.pri_joint_max   = self.joint_ranges[self.pri_joint_idxs,1]
-        self.pri_joint_range = self.pri_joint_max - self.pri_joint_min
-        self.n_pri_joint     = len(self.pri_joint_idxs)
+        self.n_dof            = self.model.nv # degree of freedom
+        self.n_joint          = self.model.njnt     # number of joints
+        self.joint_names      = [mujoco.mj_id2name(self.model,mujoco.mjtJoint.mjJNT_HINGE,x) 
+                                 for x in range(self.n_joint)]
+        self.joint_types      = self.model.jnt_type # joint types
+        self.joint_ranges     = self.model.jnt_range # joint ranges
+        self.rev_joint_idxs   = np.where(self.joint_types==mujoco.mjtJoint.mjJNT_HINGE)[0].astype(np.int32)
+        self.rev_joint_names  = [self.joint_names[x] for x in self.rev_joint_idxs]
+        self.n_rev_joint      = len(self.rev_joint_idxs)
+        self.rev_joint_mins   = self.joint_ranges[self.rev_joint_idxs,0]
+        self.rev_joint_maxs   = self.joint_ranges[self.rev_joint_idxs,1]
+        self.rev_joint_ranges = self.rev_joint_maxs - self.rev_joint_mins
+        self.pri_joint_idxs   = np.where(self.joint_types==mujoco.mjtJoint.mjJNT_SLIDE)[0].astype(np.int32)
+        self.pri_joint_names  = [self.joint_names[x] for x in self.pri_joint_idxs]
+        self.pri_joint_mins   = self.joint_ranges[self.pri_joint_idxs,0]
+        self.pri_joint_maxs   = self.joint_ranges[self.pri_joint_idxs,1]
+        self.pri_joint_ranges = self.pri_joint_maxs - self.pri_joint_mins
+        self.n_pri_joint      = len(self.pri_joint_idxs)
         # Actuator
-        self.ctrl_range      = self.model.actuator_ctrlrange
+        self.n_ctrl           = self.model.nu # number of actuators (or controls)
+        self.ctrl_ranges      = self.model.actuator_ctrlrange # control range
         
     def print_info(self):
         """
@@ -79,17 +80,17 @@ class MuJoCoParserClass(object):
         print ("n_rev_joint:[%d]"%(self.n_rev_joint))
         print ("rev_joint_idxs:%s"%(self.rev_joint_idxs))
         print ("rev_joint_names:%s"%(self.rev_joint_names))
-        print ("rev_joint_min:%s"%(self.rev_joint_min))
-        print ("rev_joint_max:%s"%(self.rev_joint_max))
-        print ("rev_joint_range:%s"%(self.rev_joint_range))
+        print ("rev_joint_mins:%s"%(self.rev_joint_mins))
+        print ("rev_joint_maxs:%s"%(self.rev_joint_maxs))
+        print ("rev_joint_ranges:%s"%(self.rev_joint_ranges))
         print ("n_pri_joint:[%d]"%(self.n_pri_joint))
         print ("pri_joint_idxs:%s"%(self.pri_joint_idxs))
         print ("pri_joint_names:%s"%(self.pri_joint_names))
-        print ("pri_joint_min:%s"%(self.pri_joint_min))
-        print ("pri_joint_max:%s"%(self.pri_joint_max))
-        print ("pri_joint_range:%s"%(self.pri_joint_range))
-
-        print ("ctrl_range:\n%s"%(self.ctrl_range))
+        print ("pri_joint_mins:%s"%(self.pri_joint_mins))
+        print ("pri_joint_maxs:%s"%(self.pri_joint_maxs))
+        print ("pri_joint_ranges:%s"%(self.pri_joint_ranges))
+        print ("n_ctrl:\n%s"%(self.n_ctrl))
+        print ("ctrl_ranges:\n%s"%(self.ctrl_ranges))
         
         
     def init_viewer(self,viewer_title='MuJoCo',viewer_width=1200,viewer_height=800,viewer_hide_menus=True):
@@ -150,12 +151,15 @@ class MuJoCoParserClass(object):
         mujoco.mj_forward(self.model,self.data)
         self.tick = 0
 
-    def step(self,ctrl=None,nstep=1):
+    def step(self,ctrl=None,ctrl_idxs=None,nstep=1):
         """
             Forward dynamics
         """
         if ctrl is not None:
-            self.data.ctrl = ctrl
+            if ctrl_idxs is None:
+                self.data.ctrl[:] = ctrl
+            else:
+                self.data.ctrl[ctrl_idxs] = ctrl
         mujoco.mj_step(self.model,self.data,nstep=nstep)
         self.tick = self.tick + 1
         
@@ -170,6 +174,12 @@ class MuJoCoParserClass(object):
                 self.data.qpos = q
         mujoco.mj_forward(self.model,self.data)
         self.tick = self.tick + 1
+
+    def get_sim_time(self):
+        """
+            Get simulation time (sec)
+        """
+        return self.data.time
         
     def render(self):
         """
