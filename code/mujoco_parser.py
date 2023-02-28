@@ -212,9 +212,9 @@ class MuJoCoParserClass(object):
             Render
         """
         if self.USE_MUJOCO_VIEWER:
-            self.render_tick = self.render_tick + 1
-            if (self.render_tick % render_every) == 0:
+            if ((self.render_tick % render_every) == 0) or (self.render_tick == 0):
                 self.viewer.render()
+            self.render_tick = self.render_tick + 1
         else:
             print ("[%s] Viewer NOT initialized."%(self.name))
             
