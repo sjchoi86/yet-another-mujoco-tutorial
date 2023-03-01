@@ -4,6 +4,15 @@ import shapely as sp # handle polygon
 from shapely import Polygon,LineString,Point # handle polygons
 from scipy.spatial.distance import cdist
 
+def rot_mtx(deg):
+    """
+        2 x 2 rotation matrix
+    """
+    theta = np.radians(deg)
+    c, s = np.cos(theta), np.sin(theta)
+    R = np.array(((c, -s), (s, c)))
+    return R
+
 def pr2t(p,R):
     """ 
         Convert pose to transformation matrix 
