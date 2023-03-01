@@ -9,7 +9,8 @@ class RapidlyExploringRandomTreesStarClass(object):
         Rapidly-Exploring Random Trees (RRT) Class
     """
     def __init__(self,name,point_min=np.array([-1,-1]),point_max=np.array([+1,+1]),
-                 goal_select_rate=0.1,steer_len_max=0.1,norm_ord=2,search_radius=0.3):
+                 goal_select_rate=0.1,steer_len_max=0.1,norm_ord=2,search_radius=0.3,
+                 n_node_max=1000,TERMINATE_WHEN_GOAL_REACHED=False):
         """
             Initialize RRT object
         """
@@ -24,22 +25,19 @@ class RapidlyExploringRandomTreesStarClass(object):
         self.norm_ord         = norm_ord      # norm order (2, inf, ... )
         self.search_radius    = search_radius
         self.tree             = None
+        self.loop_cnt         = 0
+        self.n_node_max       = n_node_max
+        self.TERMINATE_WHEN_GOAL_REACHED = TERMINATE_WHEN_GOAL_REACHED
         
-    def reset(self):
+    def init_rrt_star(self,point_root=None,point_goal=None,seed=0):
         """
-            Reset
-        """
-        if self.tree is not None:
-            self.tree.clear()
-        
-    def init_tree(self,point_root=None,point_goal=None,seed=0):
-        """
-            Initialize Tree
+            Initialize RRT*
         """
         # Fix random seed
         np.random.seed(seed=seed)
         # Clear tree
-        self.reset()
+        if self.tree is not None:
+            self.tree.clear()
         # Init tree
         self.tree = tree = nx.DiGraph(name=self.name) # directed graph
         self.tree.add_node(0)
@@ -50,6 +48,15 @@ class RapidlyExploringRandomTreesStarClass(object):
         self.tree.update(nodes=[(0,{'point':self.point_root,'cost':0.0})])
         # Set goal point
         if point_goal is not None: self.point_goal = point_goal
+        # Initialize loop count
+        self.loop_cnt = 0
+
+    def increase_loop_cnt(self):
+        """
+            Increase loop counter
+        """
+        self.loop_cnt = self.loop_cnt + 1
+        return True
         
     def set_goal(self,point_goal):
         """
