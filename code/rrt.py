@@ -9,20 +9,21 @@ class RapidlyExploringRandomTreesStarClass(object):
         Rapidly-Exploring Random Trees (RRT) Class
     """
     def __init__(self,name,point_min=np.array([-1,-1]),point_max=np.array([+1,+1]),
-                 steer_len_max=0.1,norm_ord=2,search_radius=0.3):
+                 goal_select_rate=0.1,steer_len_max=0.1,norm_ord=2,search_radius=0.3):
         """
             Initialize RRT object
         """
-        self.name          = name
-        self.point_min     = point_min
-        self.point_max     = point_max
-        self.point_root    = None
-        self.point_goal    = None
-        self.dim           = len(self.point_min)
-        self.steer_len_max = steer_len_max # maximum steer length
-        self.norm_ord      = norm_ord      # norm order (2, inf, ... )
-        self.search_radius = search_radius
-        self.tree          = None
+        self.name             = name
+        self.point_min        = point_min
+        self.point_max        = point_max
+        self.point_root       = None
+        self.point_goal       = None
+        self.dim              = len(self.point_min)
+        self.goal_select_rate = goal_select_rate
+        self.steer_len_max    = steer_len_max # maximum steer length
+        self.norm_ord         = norm_ord      # norm order (2, inf, ... )
+        self.search_radius    = search_radius
+        self.tree             = None
         
     def reset(self):
         """
@@ -31,11 +32,15 @@ class RapidlyExploringRandomTreesStarClass(object):
         if self.tree is not None:
             self.tree.clear()
         
-    def init_tree(self,point_root=None,point_goal=None):
+    def init_tree(self,point_root=None,point_goal=None,seed=0):
         """
             Initialize Tree
         """
+        # Fix random seed
+        np.random.seed(seed=seed)
+        # Clear tree
         self.reset()
+        # Init tree
         self.tree = tree = nx.DiGraph(name=self.name) # directed graph
         self.tree.add_node(0)
         if point_root is None:
@@ -43,8 +48,8 @@ class RapidlyExploringRandomTreesStarClass(object):
         else:
             self.point_root = point_root
         self.tree.update(nodes=[(0,{'point':self.point_root,'cost':0.0})])
-        if point_goal is not None:
-            self.point_goal = point_goal
+        # Set goal point
+        if point_goal is not None: self.point_goal = point_goal
         
     def set_goal(self,point_goal):
         """
@@ -311,8 +316,8 @@ class RapidlyExploringRandomTreesStarClass(object):
                          nodems=3,nodemec='k',nodemfc='w',nodemew=1/2,
                          edgergba=[0,0,0,0.2],edgelw=1/2,
                          obsrgba=[0.2,0.2,0.2,0.5],
-                         startrgb=[1,0,0],startms=8,startmew=2,startfs=10,
-                         goalrgb=[0,0,1],goalms=8,goalmew=2,goalfs=10,
+                         startrgb=[1,0,0],startms=8,startmew=2,startfs=10,startbbalpha=0.5,start_xoffset=0.1,
+                         goalrgb=[0,0,1],goalms=8,goalmew=2,goalfs=10,goalbbalpha=0.5,goal_xoffset=0.1,
                          pathrgba=[1,0,1,0.5],pathlw=5,pathtextfs=8,
                          obs_list=[],
                          textfs=8,titlestr=None,titlefs=12,
@@ -343,22 +348,28 @@ class RapidlyExploringRandomTreesStarClass(object):
                 plt.text(node['point'][0],node['point'][1],'  [%d] %.2f'%(node_idx,node['cost']),
                         color='k',fontsize=textfs,va='center')
         # Root to goal path
-        for node_idx in path_node_list:
+        for idx,node_idx in enumerate(path_node_list):
             node = self.get_nodes()[node_idx]
-            plt.text(node['point'][0],node['point'][1],'  [%d] %.2f'%(node_idx,node['cost']),
-                    color='k',fontsize=pathtextfs,va='center')
+            if (idx > 0) and (idx < len(path_node_list)):
+                plt.text(node['point'][0],node['point'][1],'  [%d] %.2f'%(node_idx,node['cost']),
+                        color='k',fontsize=pathtextfs,va='center')
         for obs in obs_list:
             plt.fill(*obs.exterior.xy,fc=obsrgba,ec='none')
+        # Start position
         plt.plot(self.point_root[0],self.point_root[1],'o',
                 mfc='none',mec=startrgb,ms=startms,mew=startmew)
-        plt.text(self.point_root[0],self.point_root[1],'  Start',
-                color=startrgb,fontsize=startfs,va='center')
+        plt.text(self.point_root[0]+start_xoffset,self.point_root[1],'Start',
+                color=startrgb,fontsize=startfs,va='center',
+                bbox=dict(fc='white',alpha=startbbalpha,ec='none'))
+        # Goal position
         plt.plot(self.point_goal[0],self.point_goal[1],'o',
                 mfc='none',mec=goalrgb,ms=goalms,mew=goalmew)
-        plt.text(self.point_goal[0],self.point_goal[1],'  Goal',
-                color=goalrgb,fontsize=goalfs,va='center')
+        plt.text(self.point_goal[0]+goal_xoffset,self.point_goal[1],'Goal',
+                color=goalrgb,fontsize=goalfs,va='center',
+                bbox=dict(fc='white',alpha=goalbbalpha,ec='none'))
+        # Axes
         plt.xticks(fontsize=8); plt.yticks(fontsize=8)
-        if titlestr is None:
-            titlestr = '%s'%(self.name)
+        # Title
+        if titlestr is None: titlestr = '%s'%(self.name)
         plt.title(titlestr,fontsize=titlefs)
         plt.show()
