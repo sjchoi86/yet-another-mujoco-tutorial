@@ -322,11 +322,10 @@ class RapidlyExploringRandomTreesStarClass(object):
                          figsize=(6,6),xlim=(-1.01,1.01),ylim=(-1.01,1.01),
                          nodems=3,nodemec='k',nodemfc='w',nodemew=1/2,
                          edgergba=[0,0,0,0.2],edgelw=1/2,
-                         obsrgba=[0.2,0.2,0.2,0.5],
                          startrgb=[1,0,0],startms=8,startmew=2,startfs=10,startbbalpha=0.5,start_xoffset=0.1,
                          goalrgb=[0,0,1],goalms=8,goalmew=2,goalfs=10,goalbbalpha=0.5,goal_xoffset=0.1,
                          pathrgba=[1,0,1,0.5],pathlw=5,pathtextfs=8,
-                         obs_list=[],
+                         obs_list=[],obsrgba=[0.2,0.2,0.2,0.5],obsec='k',
                          textfs=8,titlestr=None,titlefs=12,
                          PLOT_FULL_TEXT=False
                          ):
@@ -339,12 +338,24 @@ class RapidlyExploringRandomTreesStarClass(object):
         ax.set(xlim=xlim,ylim=ylim)
         # Get node positions
         pos = np.array([self.get_node_point(node) for node in self.get_nodes()])
+        # Plot edges
         edgelist = list(self.get_edges())
         edge_pos = np.asarray([(pos[e[0]], pos[e[1]]) for e in edgelist])
         edge_collection = mpl.collections.LineCollection(
             edge_pos,colors=edgergba[:3],linewidths=edgelw,alpha=edgergba[3])
         ax.add_collection(edge_collection)
+        # Plot nodes
         plt.plot(pos[:,0],pos[:,1],'o',ms=nodems,mfc=nodemfc,mec=nodemec,mew=nodemew)
+        # Plot obstacles
+        colors = np.array([plt.cm.gist_rainbow(x) for x in np.linspace(0,1,len(obs_list))])
+        colors[:,3] = 0.5
+        for obs_idx,obs in enumerate(obs_list):
+            if obsrgba is None:
+                color = colors[obs_idx]
+            else:
+                color = obsrgba
+            plt.fill(*obs.exterior.xy,fc=color,ec=obsec)
+        # Path to goal
         path_to_goal,path_node_list = self.get_path_to_goal()
         if path_to_goal is not None:
             plt.plot(path_to_goal[:,0],path_to_goal[:,1],'o-',
@@ -360,8 +371,6 @@ class RapidlyExploringRandomTreesStarClass(object):
             if (idx > 0) and (idx < len(path_node_list)):
                 plt.text(node['point'][0],node['point'][1],'  [%d] %.2f'%(node_idx,node['cost']),
                         color='k',fontsize=pathtextfs,va='center')
-        for obs in obs_list:
-            plt.fill(*obs.exterior.xy,fc=obsrgba,ec='none')
         # Start position
         plt.plot(self.point_root[0],self.point_root[1],'o',
                 mfc='none',mec=startrgb,ms=startms,mew=startmew)
