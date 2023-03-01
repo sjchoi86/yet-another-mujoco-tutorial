@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx # handle tree
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from networkx.algorithms.traversal.depth_first_search import dfs_edges
 
 class RapidlyExploringRandomTreesStarClass(object):
     """
@@ -262,7 +263,23 @@ class RapidlyExploringRandomTreesStarClass(object):
         self.tree.remove_edge(node_parent,node)
         # Connect new parent
         self.tree.add_edge(node_parent_new,node)
-    
+
+    def update_nodes_cost(self,VERBOSE=False):
+        """
+            Update the costs of all nodes
+        """
+        for edge in dfs_edges(self.tree,source=0): # for all edges is DFS
+            node_parent,node_child = edge[0],edge[1]
+            point_parent,cost_parent = self.get_node_point_and_cost(node_parent)
+            point_child,cost_child = self.get_node_point_and_cost(node_child)
+            # Update child cost
+            cost_child_new = cost_parent+self.get_dist(point_parent,point_child)
+            if VERBOSE:
+                if cost_parent != cost_child_new:
+                    print ("[update_nodes_cost] node_child:[%d] cost_child:[%.2f]=>[%.2f]"%
+                        (node_child,cost_parent,cost_child_new))
+            self.update_node_info(node_child,cost=cost_child_new)
+
     def plot_tree(self,figsize=(6,6),nodesize=50,arrowsize=10,linewidth=1,
                   nodecolor='w',edgecolor='k',xlim=(-1,+1),ylim=(-1,+1),
                   title_str=None,titlefs=10,SKIP_PLT_SHOW=False):
