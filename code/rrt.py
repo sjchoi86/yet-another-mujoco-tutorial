@@ -327,7 +327,8 @@ class RapidlyExploringRandomTreesStarClass(object):
                          pathrgba=[1,0,1,0.5],pathlw=5,pathtextfs=8,
                          obs_list=[],obsrgba=[0.2,0.2,0.2,0.5],obsec='k',
                          textfs=8,titlestr=None,titlefs=12,
-                         PLOT_FULL_TEXT=False
+                         PLOT_PATH_TEXT=False,PLOT_FULL_TEXT=False,
+                         SAVE_PNG=False,png_path=''
                          ):
         """
             Plot tree without using networkx package
@@ -335,7 +336,6 @@ class RapidlyExploringRandomTreesStarClass(object):
         plt.figure(figsize=figsize)
         ax = plt.axes()
         ax.tick_params(left=True,bottom=True,labelleft=True,labelbottom=True)
-        ax.set(xlim=xlim,ylim=ylim)
         # Get node positions
         pos = np.array([self.get_node_point(node) for node in self.get_nodes()])
         # Plot edges
@@ -369,8 +369,9 @@ class RapidlyExploringRandomTreesStarClass(object):
         for idx,node_idx in enumerate(path_node_list):
             node = self.get_nodes()[node_idx]
             if (idx > 0) and (idx < len(path_node_list)):
-                plt.text(node['point'][0],node['point'][1],'  [%d] %.2f'%(node_idx,node['cost']),
-                        color='k',fontsize=pathtextfs,va='center')
+                if PLOT_PATH_TEXT:
+                    plt.text(node['point'][0],node['point'][1],'  [%d] %.2f'%(node_idx,node['cost']),
+                            color='k',fontsize=pathtextfs,va='center')
         # Start position
         plt.plot(self.point_root[0],self.point_root[1],'o',
                 mfc='none',mec=startrgb,ms=startms,mew=startmew)
@@ -385,7 +386,16 @@ class RapidlyExploringRandomTreesStarClass(object):
                 bbox=dict(fc='white',alpha=goalbbalpha,ec='none'))
         # Axes
         plt.xticks(fontsize=8); plt.yticks(fontsize=8)
+        # Axis again
+        plt.axis([xlim[0],xlim[1],ylim[0],ylim[1]])
+        ax.set_aspect('equal', adjustable='box')
         # Title
         if titlestr is None: titlestr = '%s'%(self.name)
         plt.title(titlestr,fontsize=titlefs)
-        plt.show()
+        if SAVE_PNG:
+            print ("[%s] saved."%(png_path))
+            plt.savefig(png_path, bbox_inches='tight')
+            plt.close()
+        else:
+            # Show
+            plt.show()
