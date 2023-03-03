@@ -30,7 +30,7 @@ class MuJoCoParserClass(object):
         # Print
         if self.VERBOSE:
             self.print_info()
-        
+
     def _parse_xml(self):
         """
             Parse an xml file
@@ -39,14 +39,14 @@ class MuJoCoParserClass(object):
         self.model            = mujoco.MjModel.from_xml_path(self.full_xml_path)
         self.data             = mujoco.MjData(self.model)
         self.n_geom           = self.model.ngeom # number of geometries
-        self.geom_names       = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_GEOM,x) 
+        self.geom_names       = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_GEOM,x)
                                 for x in range(self.model.ngeom)]
         self.n_body           = self.model.nbody # number of bodies
-        self.body_names       = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_BODY,x) 
+        self.body_names       = [mujoco.mj_id2name(self.model,mujoco.mjtObj.mjOBJ_BODY,x)
                                 for x in range(self.n_body)]
         self.n_dof            = self.model.nv # degree of freedom
         self.n_joint          = self.model.njnt     # number of joints
-        self.joint_names      = [mujoco.mj_id2name(self.model,mujoco.mjtJoint.mjJNT_HINGE,x) 
+        self.joint_names      = [mujoco.mj_id2name(self.model,mujoco.mjtJoint.mjJNT_HINGE,x)
                                  for x in range(self.n_joint)]
         self.joint_types      = self.model.jnt_type # joint types
         self.joint_ranges     = self.model.jnt_range # joint ranges
@@ -74,7 +74,7 @@ class MuJoCoParserClass(object):
             joint_idx = self.model.jnt_qposadr[transmission_idx][0] # index of the joint when the actuator acts on a joint
             self.ctrl_joint_idxs.append(joint_idx)
         self.ctrl_ranges      = self.model.actuator_ctrlrange # control range
-        
+
     def print_info(self):
         """
             Printout model information
@@ -103,8 +103,8 @@ class MuJoCoParserClass(object):
         print ("ctrl_names:%s"%(self.ctrl_names))
         print ("ctrl_joint_idxs:%s"%(self.ctrl_joint_idxs))
         print ("ctrl_ranges:\n%s"%(self.ctrl_ranges))
-        
-        
+
+
     def init_viewer(self,viewer_title='MuJoCo',viewer_width=1200,viewer_height=800,viewer_hide_menus=True):
         """
             Initialize viewer
@@ -113,7 +113,7 @@ class MuJoCoParserClass(object):
         self.viewer = mujoco_viewer.MujocoViewer(
                 self.model,self.data,mode='window',title=viewer_title,
                 width=viewer_width,height=viewer_height,hide_menus=viewer_hide_menus)
-        
+
     def update_viewer(self,azimuth=None,distance=None,elevation=None,lookat=None,
                       VIS_TRANSPARENT=None,VIS_CONTACTPOINT=None,
                       contactwidth=None,contactheight=None,contactrgba=None,
@@ -167,7 +167,7 @@ class MuJoCoParserClass(object):
             Check whether a viewer is alive
         """
         return self.viewer.is_alive
-        
+
     def reset(self):
         """
             Reset
@@ -188,7 +188,7 @@ class MuJoCoParserClass(object):
                 self.data.ctrl[ctrl_idxs] = ctrl
         mujoco.mj_step(self.model,self.data,nstep=nstep)
         self.tick = self.tick + 1
-        
+
     def forward(self,q=None,joint_idxs=None):
         """
             Forward kinematics
@@ -206,7 +206,7 @@ class MuJoCoParserClass(object):
             Get simulation time (sec)
         """
         return self.data.time
-        
+
     def render(self,render_every=1):
         """
             Render
@@ -217,7 +217,7 @@ class MuJoCoParserClass(object):
             self.render_tick = self.render_tick + 1
         else:
             print ("[%s] Viewer NOT initialized."%(self.name))
-            
+
     def grab_image(self):
         """
             Grab the rendered iamge
@@ -227,26 +227,26 @@ class MuJoCoParserClass(object):
         mujoco.mjr_readPixels(img, None,self.viewer.viewport,self.viewer.ctx)
         img = np.flipud(img) # flip image
         return img
-            
+
     def close_viewer(self):
         """
             Close viewer
         """
         self.USE_MUJOCO_VIEWER = False
         self.viewer.close()
-        
+
     def get_p_body(self,body_name):
         """
             Get body position
         """
         return self.data.body(body_name).xpos
-    
+
     def get_R_body(self,body_name):
         """
             Get body rotation matrix
         """
         return self.data.body(body_name).xmat.reshape([3,3])
-    
+
     def get_pR_body(self,body_name):
         """
             Get body position and rotation matrix
@@ -254,7 +254,7 @@ class MuJoCoParserClass(object):
         p = self.get_p_body(body_name)
         R = self.get_R_body(body_name)
         return p,R
-    
+
     def get_q(self,joint_idxs=None):
         """
             Get joint position in (radian)
@@ -264,7 +264,7 @@ class MuJoCoParserClass(object):
         else:
             q = self.data.qpos[joint_idxs]
         return q
-        
+
     def get_J_body(self,body_name):
         """
             Get Jocobian matrices of a body
@@ -274,7 +274,7 @@ class MuJoCoParserClass(object):
         mujoco.mj_jacBody(self.model,self.data,J_p,J_R,self.data.body(body_name).id)
         J_full = np.array(np.vstack([J_p,J_R]))
         return J_p,J_R,J_full
-    
+
     def get_ik_ingredients(self,body_name,p_trgt=None,R_trgt=None,IK_P=True,IK_R=True):
         """
             Get IK ingredients
@@ -308,7 +308,7 @@ class MuJoCoParserClass(object):
         dq = stepsize*np.linalg.solve(a=(J.T@J)+eps*np.eye(J.shape[1]),b=J.T@err)
         dq = trim_scale(x=dq,th=th)
         return dq
-    
+
     def plot_sphere(self,p,r,rgba=[1,1,1,1],label=''):
         """
             Add sphere
@@ -319,7 +319,7 @@ class MuJoCoParserClass(object):
             rgba  = rgba,
             type  = mujoco.mjtGeom.mjGEOM_SPHERE,
             label = label)
-        
+
     def plot_T(self,p,R,
                PLOT_AXIS=True,axis_len=1.0,axis_width=0.01,
                PLOT_SPHERE=False,sphere_r=0.05,sphere_rgba=[1,0,0,0.5],
@@ -376,7 +376,7 @@ class MuJoCoParserClass(object):
                 rgba  = [1,1,1,0.01],
                 type  = mujoco.mjtGeom.mjGEOM_SPHERE,
                 label = label)
-            
+
     def plot_arrow(self,p,uv,r_stem=0.03,len_arrow=0.3,rgba=[1,0,0,1],label=''):
         """
             Plot arrow
@@ -409,7 +409,7 @@ class MuJoCoParserClass(object):
         """
         body_names = [x for x in self.body_names if x[:len(prefix)]==prefix]
         return body_names
-    
+
     def get_contact_info(self,must_include_prefix=None):
         """
             Get contact information
@@ -424,7 +424,7 @@ class MuJoCoParserClass(object):
             p_contact = contact.pos # contact position
             R_frame = contact.frame.reshape((3,3))
             # Contact force
-            f_contact_local = np.zeros(6,dtype=np.float64) 
+            f_contact_local = np.zeros(6,dtype=np.float64)
             mujoco.mj_contactForce(self.model,self.data,0,f_contact_local)
             f_contact = R_frame @ f_contact_local[:3] # in the global coordinate
             # Contacting geoms
