@@ -1,0 +1,45 @@
+<mujoco>
+    <asset>
+        <mesh name="Body" file="Body.STL" />
+        <mesh name="Camera_module_1" file="Camera_module_1.STL" />
+        <mesh name="Camera_module_2" file="Camera_module_2.STL" />
+
+        <mesh name="Leg_module_1_1" file="Leg_module_1_1.STL" />
+        <mesh name="Leg_module_1_2" file="Leg_module_1_2.STL" />
+        <mesh name="Leg_module_1_3" file="Leg_module_1_3.STL" />
+        <mesh name="Leg_module_1_4" file="Leg_module_1_4.STL" />
+        <mesh name="Leg_module_1_4bar" file="Leg_module_1_4bar.STL" />
+
+        <mesh name="Leg_module_2_1" file="Leg_module_2_1.STL" />
+        <mesh name="Leg_module_2_2" file="Leg_module_2_2.STL" />
+        <mesh name="Leg_module_2_3" file="Leg_module_2_3.STL" />
+        <mesh name="Leg_module_2_4" file="Leg_module_2_4.STL" />
+        <mesh name="Leg_module_2_4bar" file="Leg_module_2_4bar.STL" />
+
+        <mesh name="Leg_module_3_1" file="Leg_module_3_1.STL" />
+        <mesh name="Leg_module_3_2" file="Leg_module_3_2.STL" />
+        <mesh name="Leg_module_3_3" file="Leg_module_3_3.STL" />
+        <mesh name="Leg_module_3_4" file="Leg_module_3_4.STL" />
+        <mesh name="Leg_module_3_4bar" file="Leg_module_3_4bar.STL" />
+
+        <mesh name="Leg_module_4_1" file="Leg_module_4_1.STL" />
+        <mesh name="Leg_module_4_2" file="Leg_module_4_2.STL" />
+        <mesh name="Leg_module_4_3" file="Leg_module_4_3.STL" />
+        <mesh name="Leg_module_4_4" file="Leg_module_4_4.STL" />
+        <mesh name="Leg_module_4_4bar" file="Leg_module_4_4bar.STL" />
+
+        <mesh name="Leg_module_5_1" file="Leg_module_5_1.STL" />
+        <mesh name="Leg_module_5_2" file="Leg_module_5_2.STL" />
+        <mesh name="Leg_module_5_3" file="Leg_module_5_3.STL" />
+        <mesh name="Leg_module_5_4" file="Leg_module_5_4.STL" />
+        <mesh name="Leg_module_5_4bar" file="Leg_module_5_4bar.STL" />
+
+        <mesh name="Leg_module_6_1" file="Leg_module_6_1.STL" />
+        <mesh name="Leg_module_6_2" file="Leg_module_6_2.STL" />
+        <mesh name="Leg_module_6_3" file="Leg_module_6_3.STL" />
+        <mesh name="Leg_module_6_4" file="Leg_module_6_4.STL" />
+        <mesh name="Leg_module_6_4bar" file="Leg_module_6_4bar.STL" />
+        <mesh name="Mario_case" file="Mario_case.STL"/>
+        <mesh name="Ship" file="ship.stl"/>
+    </asset>
+</mujoco>
