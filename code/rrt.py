@@ -11,7 +11,7 @@ class RapidlyExploringRandomTreesStarClass(object):
     def __init__(self,name,point_min=np.array([-1,-1]),point_max=np.array([+1,+1]),
                  goal_select_rate=0.1,steer_len_max=0.1,norm_ord=2,search_radius=0.3,
                  n_node_max=10000,TERMINATE_WHEN_GOAL_REACHED=False,
-                 SPEED_UP=False):
+                 SPEED_UP=True):
         """
             Initialize RRT object
         """

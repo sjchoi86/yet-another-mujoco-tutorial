@@ -211,11 +211,20 @@ class TicTocClass(object):
         self.time_end = time.time()
         self.time_elapsed = self.time_end - self.time_start
         if VERBOSE:
+            if self.time_elapsed <1.0:
+                time_show = self.time_elapsed*1000.0
+                time_unit = 'ms'
+            elif self.time_elapsed <60.0:
+                time_show = self.time_elapsed
+                time_unit = 's'
+            else:
+                time_show = self.time_elapsed/60.0
+                time_unit = 'min'
             if (cnt % self.print_every) == 0:
                 if str is None:
-                    print ("%s Elapsed time:[%.2f]ms"%
-                        (self.name,1000.0*self.time_elapsed))
+                    print ("%s Elapsed time:[%.2f]%s"%
+                        (self.name,time_show,time_unit))
                 else:
-                    print ("%s Elapsed time:[%.2f]ms"%
-                        (str,1000.0*self.time_elapsed))
+                    print ("%s Elapsed time:[%.2f]%s"%
+                        (str,time_show,time_unit))
 
