@@ -228,3 +228,21 @@ class TicTocClass(object):
                     print ("%s Elapsed time:[%.2f]%s"%
                         (str,time_show,time_unit))
 
+def get_interp_const_vel_traj(traj_anchor,vel=1.0,HZ=100,ord=np.inf):
+    """
+        Get linearly interpolated constant velocity trajectory
+    """
+    L = traj_anchor.shape[0]
+    D = traj_anchor.shape[1]
+    dists = np.zeros(L)
+    for tick in range(L):
+        if tick > 0:
+            p_prev,p_curr = traj_anchor[tick-1,:],traj_anchor[tick,:]
+            dists[tick] = np.linalg.norm(p_prev-p_curr,ord=ord)
+    times_anchor = np.cumsum(dists/vel) # [L]
+    L_interp = int(times_anchor[-1]*HZ)
+    times_interp = np.linspace(0,times_anchor[-1],L_interp) # [L_interp]
+    traj_interp = np.zeros((L_interp,D)) # [L_interp x D]
+    for d_idx in range(D):
+        traj_interp[:,d_idx] = np.interp(times_interp,times_anchor,traj_anchor[:,d_idx])
+    return times_interp,traj_interp
