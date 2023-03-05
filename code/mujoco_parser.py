@@ -309,6 +309,22 @@ class MuJoCoParserClass(object):
         dq = trim_scale(x=dq,th=th)
         return dq
     
+    def onestep_ik(self,body_name,p_trgt=None,R_trgt=None,IK_P=True,IK_R=True,
+                   joint_idxs=None,stepsize=1,eps=1e-1,th=5*np.pi/180.0):
+        """
+            Solve IK for a single step
+        """
+        J,err = self.get_ik_ingredients(
+            body_name=body_name,p_trgt=p_trgt,R_trgt=R_trgt,IK_P=IK_P,IK_R=IK_R)
+        dq = self.damped_ls(J,err,stepsize=stepsize,eps=eps,th=th)
+        if joint_idxs is None:
+            joint_idxs = self.rev_joint_idxs
+        q = self.get_q(joint_idxs=joint_idxs)
+        q = q + dq[joint_idxs]
+        # FK
+        self.forward(q=q,joint_idxs=joint_idxs)
+        return q, err
+    
     def plot_sphere(self,p,r,rgba=[1,1,1,1],label=''):
         """
             Add sphere
@@ -443,4 +459,24 @@ class MuJoCoParserClass(object):
                 geom1s.append(contact_geom1)
                 geom2s.append(contact_geom2)
         return p_contacts,f_contacts,geom1s,geom2s
+    
+    def plot_contact_info(self,must_include_prefix=None):
+        """
+            Plot contact information
+        """
+        # Get contact information
+        p_contacts,f_contacts,geom1s,geom2s = self.get_contact_info(
+            must_include_prefix=must_include_prefix)
+        # Render contact informations
+        for (p_contact,f_contact,geom1,geom2) in zip(p_contacts,f_contacts,geom1s,geom2s):
+            f_norm = np.linalg.norm(f_contact)
+            f_uv = f_contact / (f_norm+1e-8)
+            f_len = 0.3 # f_norm*0.05
+            self.plot_arrow(p=p_contact,uv=f_uv,r_stem=0.01,len_arrow=f_len,rgba=[1,0,0,1],
+                        label='')
+            self.plot_arrow(p=p_contact,uv=-f_uv,r_stem=0.01,len_arrow=f_len,rgba=[1,0,0,1],
+                        label='')
+            label = '' # '[%s]-[%s]'%(geom1,geom2)
+            self.plot_sphere(p=p_contact,r=0.02,rgba=[1,0.2,0.2,1],label=label)
 
+    

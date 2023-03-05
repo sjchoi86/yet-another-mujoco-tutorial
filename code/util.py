@@ -1,4 +1,4 @@
-import math
+import math,time
 import numpy as np
 import shapely as sp # handle polygon
 from shapely import Polygon,LineString,Point # handle polygons
@@ -184,3 +184,38 @@ def is_point_to_point_connectable(point1,point2,obs_list):
         return True
     else:
         return False
+    
+class TicTocClass(object):
+    """
+        Tic toc
+    """
+    def __init__(self,name='tictoc',print_every=1):
+        """
+            Initialize
+        """
+        self.name        = name
+        self.time_start  = time.time()
+        self.time_end    = time.time()
+        self.print_every = print_every
+
+    def tic(self):
+        """
+            Tic
+        """
+        self.time_start = time.time()
+
+    def toc(self,str=None,cnt=0,VERBOSE=True):
+        """
+            Toc
+        """
+        self.time_end = time.time()
+        self.time_elapsed = self.time_end - self.time_start
+        if VERBOSE:
+            if (cnt % self.print_every) == 0:
+                if str is None:
+                    print ("%s Elapsed time:[%.2f]ms"%
+                        (self.name,1000.0*self.time_elapsed))
+                else:
+                    print ("%s Elapsed time:[%.2f]ms"%
+                        (str,1000.0*self.time_elapsed))
+

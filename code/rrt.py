@@ -10,7 +10,8 @@ class RapidlyExploringRandomTreesStarClass(object):
     """
     def __init__(self,name,point_min=np.array([-1,-1]),point_max=np.array([+1,+1]),
                  goal_select_rate=0.1,steer_len_max=0.1,norm_ord=2,search_radius=0.3,
-                 n_node_max=1000,TERMINATE_WHEN_GOAL_REACHED=False):
+                 n_node_max=10000,TERMINATE_WHEN_GOAL_REACHED=False,
+                 SPEED_UP=False):
         """
             Initialize RRT object
         """
@@ -28,6 +29,10 @@ class RapidlyExploringRandomTreesStarClass(object):
         self.loop_cnt         = 0
         self.n_node_max       = n_node_max
         self.TERMINATE_WHEN_GOAL_REACHED = TERMINATE_WHEN_GOAL_REACHED
+        # Speed-up computation by storing points and costs 
+        self.SPEED_UP         = SPEED_UP
+        self.point_data       = np.zeros((self.n_node_max+1,self.dim))
+        self.cost_data        = np.zeros(self.n_node_max+1)
         
     def init_rrt_star(self,point_root=None,point_goal=None,seed=0):
         """
@@ -38,14 +43,14 @@ class RapidlyExploringRandomTreesStarClass(object):
         # Clear tree
         if self.tree is not None:
             self.tree.clear()
-        # Init tree
-        self.tree = tree = nx.DiGraph(name=self.name) # directed graph
-        self.tree.add_node(0)
         if point_root is None:
             self.point_root = np.zeros(self.dim)
         else:
             self.point_root = point_root
-        self.tree.update(nodes=[(0,{'point':self.point_root,'cost':0.0})])
+        # Init tree
+        self.tree = tree = nx.DiGraph(name=self.name) # directed graph
+        self.add_node(point=self.point_root,cost=0.0,node_parent=None)
+
         # Set goal point
         if point_goal is not None: self.point_goal = point_goal
         # Initialize loop count
@@ -69,6 +74,9 @@ class RapidlyExploringRandomTreesStarClass(object):
             Add node to tree
         """
         node_new = self.get_n_node()
+        if node_new > self.n_node_max:
+            print ("[add_node] node_new:[%d] exceeds n_node_max:[%d]"%
+                   (node_new,self.n_node_max))
         self.tree.add_node(node_new)
         if point is not None:
             self.tree.update(
@@ -80,6 +88,9 @@ class RapidlyExploringRandomTreesStarClass(object):
             )
         if node_parent is not None:
             self.tree.add_edge(node_parent,node_new)
+        # Store point and cost
+        if point is not None: self.point_data[node_new,:] = point
+        if cost is not None: self.cost_data[node_new] = cost
         return node_new
             
     def get_n_node(self):
@@ -119,10 +130,14 @@ class RapidlyExploringRandomTreesStarClass(object):
         """
             Get nearest node
         """
-        distances = [
-            self.get_dist_to_node(node=node,point=point)
-            for node in self.tree.nodes
-        ]
+        if self.SPEED_UP:
+            point_data = self.point_data[:self.get_n_node(),:]
+            distances = np.sqrt(np.sum((point_data-point)**2,axis=1))
+        else:
+            distances = [
+                self.get_dist_to_node(node=node,point=point)
+                for node in self.tree.nodes
+            ]
         node_nearest = np.argmin(distances)
         return node_nearest
     
@@ -137,6 +152,15 @@ class RapidlyExploringRandomTreesStarClass(object):
             Get node cost
         """
         return self.tree.nodes[node]['cost']
+    
+    def get_cost_goal(self):
+        """
+            Get the cost to goal
+        """
+        node_goal = self.get_node_goal()
+        if node_goal is not None: cost_goal = self.get_node_cost(node_goal)
+        else: cost_goal = np.inf
+        return cost_goal
     
     def get_node_point_and_cost(self,node):
         """
@@ -252,18 +276,25 @@ class RapidlyExploringRandomTreesStarClass(object):
         """
             Get the list of nodes near 'point' w.r.t given 'search_radius'
         """
-        # Get distances of all nodes to 'node' 
-        distances = [
-            self.get_dist(self.get_node_point(node),point)
-            for node in self.get_nodes()
-        ]
+        # Get distances of all nodes to 'node'
+        if self.SPEED_UP:
+            point_data = self.point_data[:self.get_n_node(),:]
+            distances = np.sqrt(np.sum((point_data-point)**2,axis=1))
+        else:
+            distances = [
+                self.get_dist(self.get_node_point(node),point)
+                for node in self.get_nodes()
+            ]
         # Accumulate the list of near nodes thresholded by 'search_radius'
         if search_radius is None:
             search_radius = self.search_radius
-        nodes_near = []
-        for node,dist in enumerate(distances):
-            if dist <= search_radius:
-                nodes_near.append(node)
+        if self.SPEED_UP:
+            nodes_near = np.where(distances<search_radius)[0]
+        else:
+            nodes_near = []
+            for node,dist in enumerate(distances):
+                if dist <= search_radius:
+                    nodes_near.append(node)
         return nodes_near
 
     def replace_node_parent(self,node,node_parent_new):
@@ -276,11 +307,11 @@ class RapidlyExploringRandomTreesStarClass(object):
         # Connect new parent
         self.tree.add_edge(node_parent_new,node)
 
-    def update_nodes_cost(self,VERBOSE=False):
+    def update_nodes_cost(self,node_source=0,VERBOSE=False):
         """
             Update the costs of all nodes
         """
-        for edge in dfs_edges(self.tree,source=0): # for all edges is DFS
+        for edge in dfs_edges(self.tree,source=node_source): # for all edges is DFS
             node_parent,node_child = edge[0],edge[1]
             point_parent,cost_parent = self.get_node_point_and_cost(node_parent)
             point_child,cost_child = self.get_node_point_and_cost(node_child)
@@ -328,7 +359,7 @@ class RapidlyExploringRandomTreesStarClass(object):
                          obs_list=[],obsrgba=[0.2,0.2,0.2,0.5],obsec='k',
                          textfs=8,titlestr=None,titlefs=12,
                          PLOT_PATH_TEXT=False,PLOT_FULL_TEXT=False,
-                         SAVE_PNG=False,png_path=''
+                         SAVE_PNG=False,png_path='',VERBOSE=True,
                          ):
         """
             Plot tree without using networkx package
@@ -393,7 +424,8 @@ class RapidlyExploringRandomTreesStarClass(object):
         if titlestr is None: titlestr = '%s'%(self.name)
         plt.title(titlestr,fontsize=titlefs)
         if SAVE_PNG:
-            print ("[%s] saved."%(png_path))
+            if VERBOSE:
+                print ("[%s] saved."%(png_path))
             plt.savefig(png_path, bbox_inches='tight')
             plt.close()
         else:
