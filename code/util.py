@@ -1,6 +1,17 @@
-import math
+import math,time
 import numpy as np
+import shapely as sp # handle polygon
+from shapely import Polygon,LineString,Point # handle polygons
 from scipy.spatial.distance import cdist
+
+def rot_mtx(deg):
+    """
+        2 x 2 rotation matrix
+    """
+    theta = np.radians(deg)
+    c, s = np.cos(theta), np.sin(theta)
+    R = np.array(((c, -s), (s, c)))
+    return R
 
 def pr2t(p,R):
     """ 
@@ -143,3 +154,95 @@ def kernel_levse(X1,X2,L1,L2,hyp={'g':1,'l':1}):
     K = hyp['g']*np.exp(-cdist(X1,X2,'sqeuclidean')/(2*hyp['l']*hyp['l']))
     L = np.cos(np.pi/2.0*cdist(L1,L2,'cityblock'))
     return np.multiply(K,L)
+
+def is_point_in_polygon(point,polygon):
+    """
+        Is the point inside the polygon
+    """
+    if isinstance(point,np.ndarray):
+        point_check = Point(point)
+    else:
+        point_check = point
+    return sp.contains(polygon,point_check)
+
+def is_point_feasible(point,obs_list):
+    """
+        Is the point feasible w.r.t. obstacle list
+    """
+    result = is_point_in_polygon(point,obs_list) # is the point inside each obstacle?
+    if sum(result) == 0:
+        return True
+    else:
+        return False
+
+def is_point_to_point_connectable(point1,point2,obs_list):
+    """
+        Is the line connecting two points connectable
+    """
+    result = sp.intersects(LineString([point1,point2]),obs_list)
+    if sum(result) == 0:
+        return True
+    else:
+        return False
+    
+class TicTocClass(object):
+    """
+        Tic toc
+    """
+    def __init__(self,name='tictoc',print_every=1):
+        """
+            Initialize
+        """
+        self.name        = name
+        self.time_start  = time.time()
+        self.time_end    = time.time()
+        self.print_every = print_every
+
+    def tic(self):
+        """
+            Tic
+        """
+        self.time_start = time.time()
+
+    def toc(self,str=None,cnt=0,VERBOSE=True):
+        """
+            Toc
+        """
+        self.time_end = time.time()
+        self.time_elapsed = self.time_end - self.time_start
+        if VERBOSE:
+            if self.time_elapsed <1.0:
+                time_show = self.time_elapsed*1000.0
+                time_unit = 'ms'
+            elif self.time_elapsed <60.0:
+                time_show = self.time_elapsed
+                time_unit = 's'
+            else:
+                time_show = self.time_elapsed/60.0
+                time_unit = 'min'
+            if (cnt % self.print_every) == 0:
+                if str is None:
+                    print ("%s Elapsed time:[%.2f]%s"%
+                        (self.name,time_show,time_unit))
+                else:
+                    print ("%s Elapsed time:[%.2f]%s"%
+                        (str,time_show,time_unit))
+
+def get_interp_const_vel_traj(traj_anchor,vel=1.0,HZ=100,ord=np.inf):
+    """
+        Get linearly interpolated constant velocity trajectory
+    """
+    L = traj_anchor.shape[0]
+    D = traj_anchor.shape[1]
+    dists = np.zeros(L)
+    for tick in range(L):
+        if tick > 0:
+            p_prev,p_curr = traj_anchor[tick-1,:],traj_anchor[tick,:]
+            dists[tick] = np.linalg.norm(p_prev-p_curr,ord=ord)
+    times_anchor = np.cumsum(dists/vel) # [L]
+    L_interp = int(times_anchor[-1]*HZ)
+    times_interp = np.linspace(0,times_anchor[-1],L_interp) # [L_interp]
+    traj_interp = np.zeros((L_interp,D)) # [L_interp x D]
+    for d_idx in range(D):
+        traj_interp[:,d_idx] = np.interp(times_interp,times_anchor,traj_anchor[:,d_idx])
+    return times_interp,traj_interp
