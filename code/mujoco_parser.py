@@ -158,7 +158,7 @@ class MuJoCoParserClass(object):
         cam_elevation = self.viewer.cam.elevation
         cam_lookat    = self.viewer.cam.lookat
         if VERBOSE:
-            print ("cam_azimuth:[%.2f] cam_distance:[%.2f] cam_elevation:[%.2f] cam_lookat:[%.2f]"%
+            print ("cam_azimuth:[%.2f] cam_distance:[%.2f] cam_elevation:[%.2f] cam_lookat:%s]"%
                 (cam_azimuth,cam_distance,cam_elevation,cam_lookat))
         return cam_azimuth,cam_distance,cam_elevation,cam_lookat
 
