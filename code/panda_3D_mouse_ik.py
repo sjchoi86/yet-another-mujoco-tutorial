@@ -43,18 +43,20 @@ env.reset()  # reset
 ik_body_name = "panda_eef"
 
 # set joint angles
-q_init = np.array((0, 25, 0, -120, 0, 145, 0))
-q = q_init * np.pi / 180.0
+qInit = np.array((0, 25, 0, -120, 0, 145, 0)) * np.pi / 180.0
+qCurrent = copy.deepcopy(qInit)
 
 # set initial configuration for arm and gripper
-env.forward(q=q, joint_idxs=env.rev_joint_idxs)  # Set joint angles
+env.forward(q=qCurrent, joint_idxs=env.rev_joint_idxs)  # Set joint angles
 env.forward(
     q=[0.04, -0.04], joint_idxs=env.pri_joint_idxs
 )  # Open gripper (prismatic joints)
+gripperState = False  # gripper state (True: closed, False: open)
 
 # initialize the input for the flex Ik solver
 numDof = 7
 C = np.eye(numDof)
+I = np.eye(numDof)
 qMin = env.rev_joint_min
 qMax = env.rev_joint_max
 qdMin = np.array([-2] * numDof)
@@ -65,18 +67,19 @@ s = 1
 sPrev = s
 tol = 1e-4
 errNormMax = 2e-1
+kNs = 1e-3
 
 # initialize 3D mouse input
 state = pyspacemouse.read()
 mouse_pos_init = copy.deepcopy(env.data.body("panda_eef").xpos)
-mouse_pos = mouse_pos_init
+mouse_pos = copy.deepcopy(mouse_pos_init)
 mouse_ori_init = copy.deepcopy(env.get_R_body(body_name="panda_eef"))
-mouse_ori = mouse_ori_init
+mouse_ori = copy.deepcopy(mouse_ori_init)
 scale_pos_init = 2e-4
-scale_ori_init = 5e-2
+scale_ori_init = 1e-2
 
 # display settings
-display_target = False
+display_target = True
 
 # IK loop
 imgs, img_ticks, max_tick = [], [], 10000
@@ -93,8 +96,29 @@ while (env.tick < max_tick) and env.is_viewer_alive():
     )
     mouse_ori = np.matmul(mouse_ori_temp, mouse_ori)
 
+    # Reset if button 1 is pressed
+    if state.buttons[0] and state.buttons[1]:  # reset to initial configuration
+        qCurrent = copy.deepcopy(qInit)
+        mouse_pos = copy.deepcopy(mouse_pos_init)
+        mouse_ori = copy.deepcopy(mouse_ori_init)
+        time.sleep(0.2)
+
+    elif state.buttons[0] and not state.buttons[1]:
+        mouse_pos = copy.deepcopy(env.get_p_body(ik_body_name))
+        mouse_ori = copy.deepcopy(env.get_R_body(ik_body_name))
+        time.sleep(0.2)
+
+    # Flip gripper state
+    elif state.buttons[1] and not state.buttons[0]:
+        if not gripperState:
+            env.forward(q=[-0.04, 0.04], joint_idxs=env.pri_joint_idxs)
+            gripperState = True
+        else:
+            env.forward(q=[0.04, -0.04], joint_idxs=env.pri_joint_idxs)
+            gripperState = False
+        time.sleep(0.2)
+
     # update box constraints
-    qCurrent = q
     dqLow = np.maximum(
         (qMin - qCurrent) / ts,
         -qdMax,
@@ -118,8 +142,12 @@ while (env.tick < max_tick) and env.is_viewer_alive():
     else:
         errClamped = err
 
-    dxGoalData = [errClamped]
-    JData = [J[:, env.rev_joint_idxs]]
+    # nullspace bias
+    qdNs = kNs * (qInit - qCurrent)
+    qdNs = qdNs.reshape(-1, 1)
+
+    dxGoalData = [errClamped, qdNs]
+    JData = [J[:, env.rev_joint_idxs], I]
 
     dq, sData, exitCode = velIk(
         C, dqLow, dqUpp, dxGoalData, JData, SolverTypes.ESNS_MT, invTypes.SRINV
@@ -127,29 +155,26 @@ while (env.tick < max_tick) and env.is_viewer_alive():
     s = sData[0]
 
     # Update q and FK
-    q = q + dq * ts
-
-    if not (s > tol and s - sPrev >= 0):
-        print("stuck")
+    qCurrent = qCurrent + dq * ts
 
     # normalized joint position [0, 1]
-    qNormal = np.maximum((qMax - q), (q - qMin)) / (qMax - qMin)
+    qNormal = np.maximum((qMax - qCurrent), (qCurrent - qMin)) / (qMax - qMin)
 
-    if env.tick % 50 == 0:
+    if env.tick % 50 == 0 and s < 0.4:
         if np.any(qNormal >= 0.99):
             print(qNormal)
         print(s)
 
     # update model
-    env.forward(q=q, joint_idxs=env.rev_joint_idxs)
+    env.forward(q=qCurrent, joint_idxs=env.rev_joint_idxs)
 
     # Render
     env.plot_T(
         p=env.get_p_body(body_name=ik_body_name),
         R=env.get_R_body(body_name=ik_body_name),
         PLOT_AXIS=True,
-        axis_len=0.2,
-        axis_width=0.01,
+        axis_len=0.1,
+        axis_width=0.003,
         PLOT_SPHERE=False,
         sphere_r=0.05,
         sphere_rgba=[1, 0, 0, 0.9],
@@ -159,13 +184,12 @@ while (env.tick < max_tick) and env.is_viewer_alive():
             p=mouse_pos,
             R=mouse_ori,
             PLOT_AXIS=True,
-            axis_len=0.2,
-            axis_width=0.01,
+            axis_len=0.1,
+            axis_width=0.003,
             PLOT_SPHERE=False,
             sphere_r=0.05,
             sphere_rgba=[0, 0, 1, 0.9],
         )
-    env.plot_T(p=[0, 0, 0], R=np.eye(3, 3), PLOT_AXIS=True, axis_len=1.0)
     env.render()
 
 
