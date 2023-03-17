@@ -1,4 +1,5 @@
 # import all the dependencies
+import argparse
 import os, glfw, copy, time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,25 +17,31 @@ success = pyspacemouse.open()
 # set numpy print options
 np.set_printoptions(precision=2, suppress=True, linewidth=100)
 
-# print MuJoCo version
 print("MuJoCo version:[%s]" % (mujoco.__version__))
 
+# set up the command-line interface
+parser = argparse.ArgumentParser(description="Interactive IK using 3D mouse")
+parser.add_argument(
+    "robot", type=str, help="name of the robot model [spot, ur5e, panda]"
+)
+args = parser.parse_args()
+
 # parse the selected robot model description file
-selected_robot = "ur5e"
+selected_robot = args.robot
 
 # make sure the path for the mujoco_menagerie is correct for your system
 # https://github.com/deepmind/mujoco_menagerie
 path_to_mujoco_menagerie = "/home/apark/Projects/robot-models/mujoco_menagerie/"
 
 if selected_robot == "spot":
-    xml_path = "../model/spot/scene.xml"
+    xml_path = "./model/spot/scene.xml"
 elif selected_robot == "ur5e":
     xml_path = path_to_mujoco_menagerie + "universal_robots_ur5e/scene.xml"
 elif selected_robot == "panda":
     xml_path = path_to_mujoco_menagerie + "franka_emika_panda/scene.xml"
 
+# get the environment and model
 env = MuJoCoParserClass(name=selected_robot, rel_xml_path=xml_path, VERBOSE=True)
-model = mujoco.MjModel.from_xml_path(xml_path)
 print("[" + selected_robot + "] parsed.")
 
 # initialize viewer
@@ -47,25 +54,53 @@ env.init_viewer(
 env.update_viewer(azimuth=180, distance=3.84, elevation=-8.32, lookat=[0.02, 0.05, 0.7])
 env.reset()
 
-# Set IK target to the last body
-ik_body_name = env.body_names[-1]
+# Set IK target to the last body before the grippers
+if selected_robot == "panda":
+    ik_body_name = env.body_names[-3]
+if selected_robot == "spot":
+    ik_body_name = env.body_names[-2]
+else:
+    ik_body_name = env.body_names[-1]
 
 # set joint angles
+joint_idx_offset = 0
 if selected_robot == "spot":
-    qInit = np.array((0, -45, 90, -135, -90, 0)) * np.pi / 180.0
+    base_joint_idxs = np.arange(0, 6)
+    qBase = np.zeros(6)
+    qBase[2] = 0.6
+    qInit = np.zeros(env.n_rev_joint)
+    # set the initial configuration for the legs
+    qInit[0:12] = np.array([0, 30, -60] * 4) * np.pi / 180.0
+    # set the initial configuration for the arm
+    qInit[12:-1] = np.array([0, -45, 90, 0, -45, 0]) * np.pi / 180.0
+    joint_idx_offset = 6
+
 elif selected_robot == "ur5e":
-    qInit = np.array((0, -45, 90, -135, -90, 0)) * np.pi / 180.0
+    qInit = np.array((-90, -45, 90, -135, -90, 0)) * np.pi / 180.0
 elif selected_robot == "panda":
     qInit = np.array((0, 25, 0, -120, 0, 145, 0)) * np.pi / 180.0
 
 qCurrent = copy.deepcopy(qInit)
 
+if selected_robot == "spot":
+    # set initial configuration for base
+    env.forward(q=qBase, joint_idxs=base_joint_idxs)
+
 # set initial configuration for arm and gripper
-env.forward(q=qCurrent, joint_idxs=env.rev_joint_idxs)  # Set joint angles
+env.forward(
+    q=qCurrent, joint_idxs=env.rev_joint_idxs + joint_idx_offset
+)  # Set joint angles
 if selected_robot == "panda":
     # Open gripper (prismatic joints)
     env.forward(q=[-0.04, -0.04], joint_idxs=env.pri_joint_idxs)
     gripperState = False  # gripper state (True: closed, False: open)
+
+# set the indices of the arm joints
+if selected_robot == "spot":
+    # arm_jnt_idxs = env.rev_joint_idxs[-1:-7:-1]
+    jnt_idxs = env.rev_joint_idxs + joint_idx_offset - 1
+else:
+    jnt_idxs = env.rev_joint_idxs
 
 # initialize the input for the flex Ik solver
 numDof = env.n_rev_joint
@@ -96,7 +131,7 @@ scale_ori_init = 2e-2
 display_target = True
 
 # IK loop
-imgs, img_ticks, max_tick = [], [], 10000
+imgs, img_ticks, max_tick = [], [], 100000
 while (env.tick < max_tick) and env.is_viewer_alive():
     # Update the spacemouse input
     state = pyspacemouse.read()
@@ -161,7 +196,8 @@ while (env.tick < max_tick) and env.is_viewer_alive():
     qdNs = qdNs.reshape(-1, 1)
 
     dxGoalData = [errClamped, qdNs]
-    JData = [J[:, env.rev_joint_idxs], I]
+
+    JData = [J[:, jnt_idxs], I]
 
     dq, sData, exitCode = velIk(
         C, dqLow, dqUpp, dxGoalData, JData, SolverTypes.ESNS_MT, invTypes.SRINV
@@ -178,9 +214,10 @@ while (env.tick < max_tick) and env.is_viewer_alive():
         if np.any(qNormal >= 0.99):
             print(qNormal)
         print(s)
+        print(dq.T)
 
     # update model
-    env.forward(q=qCurrent, joint_idxs=env.rev_joint_idxs)
+    env.forward(q=qCurrent, joint_idxs=env.rev_joint_idxs + joint_idx_offset)
 
     # Render
     env.plot_T(
