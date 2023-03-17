@@ -1,20 +1,17 @@
 # import all the dependencies
-import os, glfw
+import os, glfw, copy, time
 import numpy as np
 import matplotlib.pyplot as plt
-import mujoco
-import mujoco_viewer
+import mujoco, mujoco_viewer
 from mujoco_utils import *
-
 import pyspacemouse
-import time
-
-pyspacemouse.close()
-success = pyspacemouse.open()
-import copy
 
 from flexIk import *
 from flexIk.velIkSolver import SolverTypes as SolverTypes
+
+# connect to 3D mouse
+pyspacemouse.close()
+success = pyspacemouse.open()
 
 # set numpy print options
 np.set_printoptions(precision=2, suppress=True, linewidth=100)
@@ -22,39 +19,56 @@ np.set_printoptions(precision=2, suppress=True, linewidth=100)
 # print MuJoCo version
 print("MuJoCo version:[%s]" % (mujoco.__version__))
 
-# parse panda URDF model
-xml_path = "../model/panda/franka_panda.xml"
-env = MuJoCoParserClass(name="Panda", rel_xml_path=xml_path, VERBOSE=True)
+# parse the selected robot model description file
+selected_robot = "ur5e"
+
+# make sure the path for the mujoco_menagerie is correct for your system
+# https://github.com/deepmind/mujoco_menagerie
+path_to_mujoco_menagerie = "/home/apark/Projects/robot-models/mujoco_menagerie/"
+
+if selected_robot == "spot":
+    xml_path = "../model/spot/scene.xml"
+elif selected_robot == "ur5e":
+    xml_path = path_to_mujoco_menagerie + "universal_robots_ur5e/scene.xml"
+elif selected_robot == "panda":
+    xml_path = path_to_mujoco_menagerie + "franka_emika_panda/scene.xml"
+
+env = MuJoCoParserClass(name=selected_robot, rel_xml_path=xml_path, VERBOSE=True)
 model = mujoco.MjModel.from_xml_path(xml_path)
-print("[Panda] parsed.")
+print("[" + selected_robot + "] parsed.")
 
 # initialize viewer
 env.init_viewer(
-    viewer_title="IK using Panda",
+    viewer_title="IK using 3D mouse",
     viewer_width=1200,
     viewer_height=800,
     viewer_hide_menus=True,
 )
 env.update_viewer(azimuth=180, distance=3.84, elevation=-8.32, lookat=[0.02, 0.05, 0.7])
-# env.update_viewer(VIS_TRANSPARENT=True)
-env.reset()  # reset
+env.reset()
 
-# Set IK targets
-ik_body_name = "panda_eef"
+# Set IK target to the last body
+ik_body_name = env.body_names[-1]
 
 # set joint angles
-qInit = np.array((0, 25, 0, -120, 0, 145, 0)) * np.pi / 180.0
+if selected_robot == "spot":
+    qInit = np.array((0, -45, 90, -135, -90, 0)) * np.pi / 180.0
+elif selected_robot == "ur5e":
+    qInit = np.array((0, -45, 90, -135, -90, 0)) * np.pi / 180.0
+elif selected_robot == "panda":
+    qInit = np.array((0, 25, 0, -120, 0, 145, 0)) * np.pi / 180.0
+
 qCurrent = copy.deepcopy(qInit)
 
 # set initial configuration for arm and gripper
 env.forward(q=qCurrent, joint_idxs=env.rev_joint_idxs)  # Set joint angles
-env.forward(
-    q=[0.04, -0.04], joint_idxs=env.pri_joint_idxs
-)  # Open gripper (prismatic joints)
-gripperState = False  # gripper state (True: closed, False: open)
+if selected_robot == "panda":
+    # Open gripper (prismatic joints)
+    env.forward(q=[-0.04, -0.04], joint_idxs=env.pri_joint_idxs)
+    gripperState = False  # gripper state (True: closed, False: open)
 
 # initialize the input for the flex Ik solver
-numDof = 7
+numDof = env.n_rev_joint
 C = np.eye(numDof)
 I = np.eye(numDof)
 qMin = env.rev_joint_min
@@ -71,9 +85,9 @@ kNs = 2e-3
 
 # initialize 3D mouse input
 state = pyspacemouse.read()
-mouse_pos_init = copy.deepcopy(env.data.body("panda_eef").xpos)
+mouse_pos_init = copy.deepcopy(env.data.body(ik_body_name).xpos)
 mouse_pos = copy.deepcopy(mouse_pos_init)
-mouse_ori_init = copy.deepcopy(env.get_R_body(body_name="panda_eef"))
+mouse_ori_init = copy.deepcopy(env.get_R_body(body_name=ik_body_name))
 mouse_ori = copy.deepcopy(mouse_ori_init)
 scale_pos_init = 1e-4
 scale_ori_init = 2e-2
@@ -108,13 +122,13 @@ while (env.tick < max_tick) and env.is_viewer_alive():
         mouse_ori = copy.deepcopy(env.get_R_body(ik_body_name))
         time.sleep(0.2)
 
-    # Flip gripper state
-    elif state.buttons[1] and not state.buttons[0]:
+    # Flip gripper state (only for panda robot)
+    elif state.buttons[1] and not state.buttons[0] and selected_robot == "panda":
         if not gripperState:
-            env.forward(q=[-0.04, 0.04], joint_idxs=env.pri_joint_idxs)
+            env.forward(q=[0.04, 0.04], joint_idxs=env.pri_joint_idxs)
             gripperState = True
         else:
-            env.forward(q=[0.04, -0.04], joint_idxs=env.pri_joint_idxs)
+            env.forward(q=[-0.04, -0.04], joint_idxs=env.pri_joint_idxs)
             gripperState = False
         time.sleep(0.2)
 
@@ -173,8 +187,8 @@ while (env.tick < max_tick) and env.is_viewer_alive():
         p=env.get_p_body(body_name=ik_body_name),
         R=env.get_R_body(body_name=ik_body_name),
         PLOT_AXIS=True,
-        axis_len=0.1,
-        axis_width=0.003,
+        axis_len=0.15,
+        axis_width=0.005,
         PLOT_SPHERE=False,
         sphere_r=0.05,
         sphere_rgba=[1, 0, 0, 0.9],
@@ -184,12 +198,15 @@ while (env.tick < max_tick) and env.is_viewer_alive():
             p=mouse_pos,
             R=mouse_ori,
             PLOT_AXIS=True,
-            axis_len=0.1,
-            axis_width=0.003,
+            axis_len=0.15,
+            axis_width=0.005,
             PLOT_SPHERE=False,
             sphere_r=0.05,
             sphere_rgba=[0, 0, 1, 0.9],
         )
+    env.plot_T(
+        p=[0, 0, 0], R=np.eye(3, 3), PLOT_AXIS=True, axis_len=0.5, axis_width=0.01
+    )
     env.render()
 
 
